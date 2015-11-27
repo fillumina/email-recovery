@@ -61,6 +61,6 @@ public class FileFactory {
                     "expecting dir but was regular file= " +
                             file.getAbsolutePath());
         }
-        return new File("unwritten_temp_" + System.nanoTime());
+        return file;
     }
 }

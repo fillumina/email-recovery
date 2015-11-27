@@ -10,8 +10,6 @@ import java.util.Date;
  * @author Francesco Illuminati <fillumina@gmail.com>
  */
 public class TreeNavigator {
-    // use this flag to help debugging, nothing will be written on disk if false
-    private static final boolean WRITE = false;
 
     private final Logger log;
     private final OwnAddress ownAddress;
@@ -20,9 +18,12 @@ public class TreeNavigator {
     private final FileParser fileParser;
     private int fileNumber;
 
-    public TreeNavigator(File destDir, File logFilename, String[] addresses)
+    public TreeNavigator(File destDir,
+            File logFilename,
+            boolean write,
+            String[] addresses)
             throws IOException {
-        log = new Logger(logFilename, true, WRITE);
+        log = new Logger(logFilename, true, write);
         log.print("\n\n\n#### STARTING " + (new Date().toString()) +
                 "###\n\n");
 
@@ -31,12 +32,12 @@ public class TreeNavigator {
         }
         ownAddress = new OwnAddress(addresses);
 
-        fileFactory = new FileFactory(destDir, this.log, WRITE);
+        fileFactory = new FileFactory(destDir, this.log, write);
 
         fragmentComposer = new FragmentComposer(log, fileFactory);
 
         fileParser = new FileParser(ownAddress, log, fileFactory,
-                fragmentComposer, WRITE);
+                fragmentComposer, write);
     }
 
     public void iterateTree(File dir) throws FileNotFoundException, IOException {

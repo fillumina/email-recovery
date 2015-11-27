@@ -76,8 +76,9 @@ public class FragmentComposer {
         for (Mail mail : mails) {
             if (mail.size() > 0) {
                 File out = fileFactory.createInJoin(mail);
+                log.print("create join file=" + out.getAbsolutePath());
                 try (FileWriter writer = new FileWriter(out)) {
-                    log.print("create join mail= " + mail.getDestFilename());
+                    log.print("mail to join= " + mail.getDestFilename());
                     append(writer, mail.getDestFilename());
                     for (Fragment f : mail) {
                         log.print("append= " + f.getDestFilename());
@@ -89,11 +90,10 @@ public class FragmentComposer {
         }
     }
 
-    private void append(FileWriter writer, File destFilename)
+    private void append(FileWriter writer, File src)
             throws FileNotFoundException, IOException {
-        FileReader reader = new FileReader(destFilename);
-        FileLoaderIterator iterable =
-                new FileLoaderIterator(reader, 0);
+        FileReader reader = new FileReader(src);
+        FileLoaderIterator iterable = new FileLoaderIterator(reader, 0);
         for (String line : iterable) {
             writer.append(line).append('\n');
         }

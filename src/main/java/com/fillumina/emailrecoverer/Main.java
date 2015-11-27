@@ -24,6 +24,8 @@ public class Main {
             new TreeNavigator(
                     new File(args[1]),
                     new File(args[2]),
+                    true,
+//                    false, //= not write anything but print log (debug)
                     addresses)
                     .iterateTree(new File(args[0]));
         } catch (IOException ex) {

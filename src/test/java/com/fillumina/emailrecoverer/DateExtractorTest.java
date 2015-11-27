@@ -71,4 +71,11 @@ public class DateExtractorTest {
         String compact = DateExtractor.toCompactString(date);
         assertEquals("20040406234716", compact);
     }
+
+    @Test
+    public void shouldReturnTheRightCompactString() {
+        Date date = DateExtractor.parse("Tue, 21 Jan 2014 09:15:06 +0100");
+        String compact = DateExtractor.toCompactString(date);
+        assertEquals("20140021081506", compact);
+    }
 }

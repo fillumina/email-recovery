@@ -56,6 +56,8 @@ public class FileParser {
         private String closeBoundary;
         private String openBoundary;
         private Date date;
+        private boolean untrustableDate = true;
+        private boolean searchingHeader = true;
 
         public Inner(File file) {
             this.file = file;
@@ -71,45 +73,59 @@ public class FileParser {
             date = null;
         }
 
+        // passing here an iterable should make it easier to test
         public void parse(Iterable<String> iterable) throws IOException {
-            clearVariables();
             final String absolutePath = file.getAbsolutePath();
             log.print("parsing " + absolutePath + "...");
 
             int binaryCounter = 0, lastBinaryCounter = 0;
-            boolean searchingHeader = true;
-            String limbo = null; // record string after binary
+            final List<String> limbo = new ArrayList<>();
 
             for (String line : iterable) {
                 if (isBinary(line, binaryCounter > 0)) {
                     binaryCounter += line.length();
-                    if (limbo != null) {
-                        binaryCounter += limbo.length() + lastBinaryCounter;
-                        limbo = null;
+                    if (!limbo.isEmpty()) {
+                        int size = 0;
+                        for (String l : limbo) {
+                            size += l.length() + 1; // CR
+                        }
+                        binaryCounter += size + lastBinaryCounter;
+                        limbo.clear();
                         lastBinaryCounter = 0;
                     }
                     continue;
                 }
+
                 int length = line.length();
-                if (binaryCounter > 0) {
+                if (binaryCounter > 0 || (!limbo.isEmpty() && limbo.size() < 5)) {
                     if (line.isEmpty() || // CR within a binary blob
                             length < 5 || // random txt
                             line.indexOf(' ') == -1) { // random
+                        binaryCounter += length;
                         continue;
                     }
-                    limbo = line;
-                    log.print("limbo (" + binaryCounter + ")= " + limbo);
+                    limbo.add(line);
+                    log.print("limbo (" + binaryCounter + ")= " + line);
                     lastBinaryCounter = binaryCounter;
                     binaryCounter = 0;
                     continue;
                 }
-                if (limbo != null) {
+
+                if (!limbo.isEmpty()) {
                     log.print("binary data size= " + lastBinaryCounter);
-                    log.print("first text after bin=" + limbo);
-                    text.add(limbo);
+                    log.print("file=" + file.getAbsolutePath());
+                    log.print("first text after bin: ");
+                    log.dump(limbo);
+
+                    for (String l : limbo) {
+                        parseLine(l);
+                    }
+
                     lastBinaryCounter = 0;
-                    limbo = null;
+                    limbo.clear();
+                    continue;
                 }
+
                 text.add(line);
                 //printText(line);
                 if (line.isEmpty()) {
@@ -117,88 +133,96 @@ public class FileParser {
                     continue;
                 }
 
-                // check for starting mail
-                if (searchingHeader) {
-                    for (String header : HEADERS) {
-                        if (line.startsWith(header)) {
-                            log.print("start of email = " + line);
-                            searchingHeader = false;
-                            checkIfMailIsInBuffer();
-                            break;
-                        }
-                    }
-                }
+                parseLine(line);
+            }
+            checkIfMailIsInBuffer();
+        }
 
-                // use every possible mean to capture a date
-                if (date == null && line.startsWith("From - ")) {
-                    final String dateStr = line.substring(7);
-                    date = DateExtractor.parse(dateStr);
-                    if (date != null) {
-                        log.print("read date from 'From - '= '" + dateStr +
-                            "' parsed as= '" + date.toString() + "'");
-                    }
-
-                } else if (date == null && line.startsWith("Received: from ")) {
-                    int idx = line.lastIndexOf(';');
-                    final String dateStr = line.substring(idx + 1);
-                    date = DateExtractor.parse(dateStr);
-                    if (date != null) {
-                        log.print("read date from 'Received: from'= '" + dateStr +
-                            "' parsed as= '" + date.toString() + "'");
-                    }
-
-                } else if (line.startsWith("From: ")) {
-                    searchingHeader = true;
-                    from = line.substring(6);
-                    log.print("read from= " + from);
-
-                } else if (line.startsWith("Date: ")) {
-                    searchingHeader = true;
-                    String dateStr = line.substring(6);
-                    date = DateExtractor.parse(dateStr);
-                    log.print("read date= '" + dateStr +
-                            "' parsed as= '" + date.toString() + "'");
-
-                } else if (line.startsWith("Subject: ")) {
-                    searchingHeader = true;
-                    subject = line.substring(9);
-                    log.print("read subject= " + subject);
-
-                } else if (line.startsWith("Message-ID: ")) {
-                    if (id != null) {
+        private void parseLine(String line) throws IOException {
+            // check for starting mail
+            if (searchingHeader) {
+                for (String header : HEADERS) {
+                    if (line.startsWith(header)) {
+                        log.print("start of email = " + line);
+                        searchingHeader = false;
                         checkIfMailIsInBuffer();
-                    }
-                    searchingHeader = true;
-                    id = line.substring(11);
-                    log.print("read id= " + id);
-
-                } else if (line.startsWith("ContentType: ")) {
-                    searchingHeader = true;
-                    contentType = line.substring(13);
-                    log.print("read content type= " + contentType);
-
-                } else if (Boundary.isValid(line)) {
-                    if (Boundary.isClose(line)) {
-                        if (openBoundary != null &&
-                                line.startsWith(openBoundary)) {
-                            log.print("remove open boundary= " + line);
-                            openBoundary = null;
-
-                        } else if (closeBoundary == null) {
-                            log.print("close boundary (fragment) = " + line);
-                            closeBoundary = line;
-
-                        } else {
-                            log.print("unexpected close boundary= " + line);
-
-                        }
-                    } else {
-                        log.print("open boundary= " + line);
-                        openBoundary = line;
+                        break;
                     }
                 }
             }
-            checkIfMailIsInBuffer();
+
+            // use every possible mean to capture a date
+            if (date == null && line.startsWith("From - ")) {
+                final String dateStr = line.substring(7);
+                date = DateExtractor.parse(dateStr);
+                if (date != null) {
+                    untrustableDate = true;
+                    log.print("read date from 'From - '= '" + dateStr +
+                        "' parsed as= '" + date.toString() + "'");
+                }
+
+            } else if (date == null && line.startsWith("Received: from ")) {
+                int idx = line.lastIndexOf(';');
+                final String dateStr = line.substring(idx + 1);
+                date = DateExtractor.parse(dateStr);
+                if (date != null) {
+                    untrustableDate = true;
+                    log.print("read date from 'Received: from'= '" + dateStr +
+                        "' parsed as= '" + date.toString() + "'");
+                }
+
+            } else if (from == null && line.startsWith("From: ")) {
+                searchingHeader = true;
+                from = line.substring(6);
+                log.print("read from= " + from);
+
+            } else if (untrustableDate && line.startsWith("Date: ")) {
+                searchingHeader = true;
+                String dateStr = line.substring(6);
+                date = DateExtractor.parse(dateStr);
+                log.print("read date= '" + dateStr +
+                        "' parsed as= '" + date.toString() + "'");
+                untrustableDate = false;
+
+            } else if (subject == null && line.startsWith("Subject: ")) {
+                searchingHeader = true;
+                subject = line.substring(9);
+                log.print("read subject= " + subject);
+
+            } else if (id == null && line.startsWith("Message-ID: ")) {
+                if (id != null) {
+                    checkIfMailIsInBuffer();
+                }
+                searchingHeader = true;
+                id = line.substring(11);
+                log.print("read id= " + id);
+
+            } else if (line.startsWith("ContentType: ")) {
+                searchingHeader = true;
+                contentType = line.substring(13);
+                log.print("read content type= " + contentType);
+
+            } else if (Boundary.isValid(line)) {
+                if (Boundary.isClose(line)) {
+                    if (openBoundary != null &&
+                            line.startsWith(openBoundary)) {
+                        log.print("remove open boundary= " + line);
+                        openBoundary = null;
+
+                    } else if (closeBoundary == null) {
+                        log.print("close boundary (fragment) = " + line);
+                        closeBoundary = line;
+
+                    } else {
+                        log.print("unexpected close boundary= " + line);
+
+                    }
+                } else {
+                    log.print("open boundary= " + line);
+                    openBoundary = line;
+                }
+            }
+
         }
 
         private void checkIfMailIsInBuffer() throws IOException {
