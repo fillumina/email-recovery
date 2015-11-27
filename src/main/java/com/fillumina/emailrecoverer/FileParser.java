@@ -46,10 +46,6 @@ public class FileParser {
         new Inner(file).parse(new FileLoaderIterator(new FileReader(file), 0));
     }
 
-    /**
-     * This inner class allows to parellelize the class which becomes
-     * thread safe.
-     */
     private class Inner {
         private final File file;
         private final List<String> text = new ArrayList<>();
@@ -80,20 +76,39 @@ public class FileParser {
             final String absolutePath = file.getAbsolutePath();
             log.print("parsing " + absolutePath + "...");
 
-            int binaryCounter = 0;
+            int binaryCounter = 0, lastBinaryCounter = 0;
             boolean searchingHeader = true;
+            String limbo = null; // record string after binary
 
-            for (String row : iterable) {
-                if (isBinary(row, binaryCounter > 0)) {
-                    binaryCounter += row.length();
+            for (String line : iterable) {
+                if (isBinary(line, binaryCounter > 0)) {
+                    binaryCounter += line.length();
+                    if (limbo != null) {
+                        binaryCounter += limbo.length() + lastBinaryCounter;
+                        limbo = null;
+                        lastBinaryCounter = 0;
+                    }
                     continue;
                 }
-                final String line = row.trim();
+                int length = line.length();
                 if (binaryCounter > 0) {
-                    if (line.isEmpty()) {
-                        continue; // could be a CR within a binary blob
+                    if (line.isEmpty() || // CR within a binary blob
+                            length < 5 || // random txt
+                            line.indexOf(' ') == -1) { // random
+                        continue;
                     }
-                    log.print("binary data size= " + binaryCounter);
+                    limbo = line;
+                    log.print("limbo (" + binaryCounter + ")= " + limbo);
+                    lastBinaryCounter = binaryCounter;
+                    binaryCounter = 0;
+                    continue;
+                }
+                if (limbo != null) {
+                    log.print("binary data size= " + lastBinaryCounter);
+                    log.print("first text after bin=" + limbo);
+                    text.add(limbo);
+                    lastBinaryCounter = 0;
+                    limbo = null;
                 }
                 text.add(line);
                 //printText(line);
@@ -102,7 +117,7 @@ public class FileParser {
                     continue;
                 }
 
-                // header
+                // check for starting mail
                 if (searchingHeader) {
                     for (String header : HEADERS) {
                         if (line.startsWith(header)) {
@@ -114,7 +129,25 @@ public class FileParser {
                     }
                 }
 
-                if (line.startsWith("From: ")) {
+                // use every possible mean to capture a date
+                if (date == null && line.startsWith("From - ")) {
+                    final String dateStr = line.substring(7);
+                    date = DateExtractor.parse(dateStr);
+                    if (date != null) {
+                        log.print("read date from 'From - '= '" + dateStr +
+                            "' parsed as= '" + date.toString() + "'");
+                    }
+
+                } else if (date == null && line.startsWith("Received: from ")) {
+                    int idx = line.lastIndexOf(';');
+                    final String dateStr = line.substring(idx + 1);
+                    date = DateExtractor.parse(dateStr);
+                    if (date != null) {
+                        log.print("read date from 'Received: from'= '" + dateStr +
+                            "' parsed as= '" + date.toString() + "'");
+                    }
+
+                } else if (line.startsWith("From: ")) {
                     searchingHeader = true;
                     from = line.substring(6);
                     log.print("read from= " + from);
@@ -123,7 +156,7 @@ public class FileParser {
                     searchingHeader = true;
                     String dateStr = line.substring(6);
                     date = DateExtractor.parse(dateStr);
-                    log.print("read date from received= '" + dateStr +
+                    log.print("read date= '" + dateStr +
                             "' parsed as= '" + date.toString() + "'");
 
                 } else if (line.startsWith("Subject: ")) {
@@ -164,7 +197,6 @@ public class FileParser {
                         openBoundary = line;
                     }
                 }
-                binaryCounter = 0;
             }
             checkIfMailIsInBuffer();
         }
