@@ -14,7 +14,8 @@ import java.util.List;
  */
 public class FileParser {
     private static final String[] HEADERS = new String[] {
-        "From ",
+        "From - ",
+        "From ???@??? ",
         "Return-Path: ",
         "Received: from",
         "X-Mozilla-",
@@ -80,10 +81,13 @@ public class FileParser {
 
             int binaryCounter = 0, lastBinaryCounter = 0;
             final List<String> limbo = new ArrayList<>();
+            String line;
 
-            for (String line : iterable) {
-                if (isBinary(line, binaryCounter > 0)) {
-                    binaryCounter += line.length();
+            for (String row : iterable) {
+                line = cleanBinaryData(row, binaryCounter > 0);
+                if (line == null) {
+                    // binary data
+                    binaryCounter += row.length();
                     if (!limbo.isEmpty()) {
                         int size = 0;
                         for (String l : limbo) {
@@ -94,6 +98,11 @@ public class FileParser {
                         lastBinaryCounter = 0;
                     }
                     continue;
+                }
+                if (line != row) {
+                    // cleaned burst
+                    log.print("row (with burst)= " + row);
+                    log.print("cleaned line    = " + line);
                 }
 
                 int length = line.length();
@@ -312,21 +321,61 @@ public class FileParser {
         }
     }
 
-    private static boolean isBinary(String line, boolean prevIsBinary) {
-        int l = line.length();
-        int counter = 0;
+    /**
+     * A line might be binary data and must be removed otherwise it can
+     * have a burst of binary in a normal text (possibly because of an
+     * overwriting of data or indexes created by a format) and should be
+     * cleaned out. Most of the time the text is still readable.
+     *
+     * @param row the line to analyze
+     * @param prevIsBinary switch a simpler algorithm that imply it's binary data
+     *        at the first non textual character. Sometimes a binary blob
+     *        can contain text (i.e. an executable) that can falsely trigger
+     *        the text filter.
+     * @return <ul>
+     * <li>null if the line is binary data
+     * <li>string with the binary burst characters cleaned out
+     * </ul>
+     */
+    static String cleanBinaryData(String row, boolean prevIsBinary) {
+        int l = row.length();
+        if (l > 600) {
+            return null;
+        }
+        int prevIndex = -1, binCounter = 0, last = 0, counter = 0, bursts = 0;
+        String after = null;
         char c;
         for (int i=0; i<l; i++) {
-            c = line.charAt(i);
-            // remove code chars but include extended ascii 8bit symbols
+            c = row.charAt(i);
             if (c != '\t' && (c < 32 || c > 126)) {
-                if (prevIsBinary) {
-                    return true;
+                binCounter++;
+                if (prevIsBinary || binCounter > (l/10)+1) {
+                    return null;
                 }
-                counter++;
+
+                if (prevIndex == i-1) {
+                    counter++;
+                } else {
+                    counter = 0;
+                }
+                prevIndex = i;
+
+            } else if (counter > 3) {
+                if (after == null) {
+                    // it's a binary burst, eliminate it
+                    after= row.substring(0, i-counter);
+                    last = i;
+                    counter = 0;
+                } else {
+                    return null; // only 1 burst is allowed
+                }
+                bursts++;
             }
         }
-        return counter > (l/5) + 1;
+        if (after != null) {
+            return after + row.substring(last, l);
+        }
+        return row;
     }
 
     protected void saveFile(File out, List<String> text) throws IOException {

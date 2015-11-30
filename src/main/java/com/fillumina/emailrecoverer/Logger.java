@@ -7,6 +7,8 @@ import java.io.IOException;
 import java.util.List;
 
 /**
+ * To use a full fledged log would be an overkill (it should be configured)
+ * so this is a simple workaround.
  *
  * @author Francesco Illuminati <fillumina@gmail.com>
  */
@@ -18,6 +20,11 @@ public class Logger implements Closeable {
         this.log = write ? new FileWriter(log, true) : null;
         this.printout = printout;
         this.write = write;
+        if (!write) {
+            print("**************************************************");
+            print("*  DEBUG MODE: nothing will be written on disk!  *");
+            print("**************************************************");
+        }
     }
 
     public void print(String s) {
