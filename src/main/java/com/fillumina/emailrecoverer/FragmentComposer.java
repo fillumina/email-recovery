@@ -85,6 +85,7 @@ public class FragmentComposer {
                         append(writer, f.getDestFilename());
                     }
                     writer.flush();
+                    writer.close();
                 }
             }
         }
@@ -97,11 +98,9 @@ public class FragmentComposer {
         for (String line : iterable) {
             writer.append(line).append('\n');
         }
-        writer.flush();
-        writer.close();
     }
 
-    void add(Mail mail) {
+    void addMail(Mail mail) {
         mails.add(mail);
     }
 

@@ -31,7 +31,7 @@ public class Mail extends Fragment implements Comparable<Mail> {
             String from,
             String id,
             String subject) {
-        String hash = Hash.hashToString(from + id);
+        String hash = Hash.hashToString(date + from + id + subject);
         return DateExtractor.toCompactString(date) + "_" + hash;
     }
 

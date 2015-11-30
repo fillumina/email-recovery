@@ -7,12 +7,16 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.regex.Pattern;
 
 /**
  *
  * @author Francesco Illuminati <fillumina@gmail.com>
  */
 public class FileParser {
+    private static final Pattern HEADER = Pattern.compile("^[A-Z][A-Za-z\\-]*:");
+    private static final String RECOVERY_HEADER = "X-Recovery-Fix-Import: ";
+
     private static final String[] HEADERS = new String[] {
         "From - ",
         "From ???@??? ",
@@ -142,6 +146,7 @@ public class FileParser {
                     continue;
                 }
 
+                // the line is finally accepted as valid text
                 parseLine(line);
             }
             checkIfMailIsInBuffer();
@@ -263,7 +268,7 @@ public class FileParser {
                 log.dump(text);
             }
 
-            if (out != null) {
+            if (out != null && !text.isEmpty()) {
                 saveFile(out, text.subList(0, text.size() - 1));
             }
         }
@@ -297,7 +302,7 @@ public class FileParser {
 
             Mail mail = new Mail(file, out,
                     from, subject, date, id, contentType);
-            fragmentComposer.add(mail);
+            fragmentComposer.addMail(mail);
             log.print("saving mail= " + mail.toString());
             if (openBoundary != null &&
                     (closeBoundary == null ||
@@ -305,6 +310,7 @@ public class FileParser {
                 fragmentComposer.manageOpenBoundary(mail, openBoundary);
             }
 
+            fixBadMail();
             return out;
         }
 
@@ -318,6 +324,43 @@ public class FileParser {
                 fragmentComposer.manageCloseBoundary(fragment, closeBoundary);
             }
             return out;
+        }
+
+        private void fixBadMail() {
+            int counter = 0;
+            // removes non-header prefix
+            for (String line : text) {
+                counter++;
+                if (HEADER.matcher(line).matches()) {
+                    text.subList(0, counter).clear();
+                    break;
+                }
+            }
+
+            if (text.isEmpty()) {
+                return;
+            }
+
+            // adds a legal first line header
+            boolean startingWithLegalHeader = false;
+            String first = text.get(0);
+            for (String header : HEADERS) {
+                if (first.startsWith(header)) {
+                    startingWithLegalHeader = true;
+                    break;
+                }
+            }
+            if (!startingWithLegalHeader) {
+                text.add(0, "From -");
+                text.add(1, RECOVERY_HEADER + "'From -' header added");
+            }
+
+            // adds an end boundary if needed
+            if (openBoundary != null) {
+                text.add(openBoundary + "--");
+                text.add(1, RECOVERY_HEADER + "close boundary added");
+            }
+
         }
     }
 

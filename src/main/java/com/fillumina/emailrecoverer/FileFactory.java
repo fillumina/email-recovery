@@ -54,7 +54,10 @@ public class FileFactory {
         if (!file.exists()) {
             log.print("creating " + file.getPath());
             if (write) {
-                file.mkdir();
+                if (!file.mkdir()) {
+                    throw new RuntimeException(
+                            "Cannot create directory " + file.getAbsolutePath());
+                }
             }
         } else if (!file.isDirectory()) {
             throw new IOException(

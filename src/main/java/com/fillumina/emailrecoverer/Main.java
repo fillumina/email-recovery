@@ -24,8 +24,8 @@ public class Main {
             new TreeNavigator(
                     new File(args[1]),
                     new File(args[2]),
-//                    true, // creates files and directory normally
-                    false, // not write anything but print log (debug)
+                    true, // creates files and directory normally
+//                    false, // not write anything but print log (debug)
                     addresses)
                     .iterateTree(new File(args[0]));
         } catch (IOException ex) {
