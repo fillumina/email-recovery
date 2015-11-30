@@ -27,7 +27,7 @@ public class Main {
                     true, // creates files and directory normally
 //                    false, // not write anything but print log (debug)
                     addresses)
-                    .iterateTree(new File(args[0]));
+                    .parseTree(new File(args[0]));
         } catch (IOException ex) {
             throw new RuntimeException(ex);
         }

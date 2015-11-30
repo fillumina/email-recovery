@@ -14,7 +14,7 @@ import java.util.regex.Pattern;
  * @author Francesco Illuminati <fillumina@gmail.com>
  */
 public class FileParser {
-    private static final Pattern HEADER = Pattern.compile("^[A-Z][A-Za-z\\-]*:");
+    private static final Pattern HEADER = Pattern.compile("^[A-Z][A-Za-z\\-]{2,}:");
     private static final String RECOVERY_HEADER = "X-Recovery-Fix-Import: ";
 
     private static final String[] HEADERS = new String[] {
@@ -32,23 +32,29 @@ public class FileParser {
     private final OwnAddress ownAddress;
     private final Logger log;
     private final FileFactory fileFactory;
-    private final FragmentComposer fragmentComposer;
     private final boolean write;
+    private int mails, fragments;
 
     public FileParser(OwnAddress ownAddress,
             Logger log,
             FileFactory fileFactory,
-            FragmentComposer fragmentComposer,
             boolean write) {
         this.ownAddress = ownAddress;
         this.log = log;
         this.fileFactory = fileFactory;
-        this.fragmentComposer = fragmentComposer;
         this.write = write;
     }
 
     public void parse(File file) throws IOException {
         new Inner(file).parse(new FileLoaderIterator(new FileReader(file), 0));
+    }
+
+    public int getMails() {
+        return mails;
+    }
+
+    public int getFragments() {
+        return fragments;
     }
 
     private class Inner {
@@ -261,8 +267,14 @@ public class FileParser {
             File out = null;
             if (from != null && date != null) {
                 out = saveMail();
+                if (out != null) {
+                    mails++;
+                }
             } else if (openBoundary != null || closeBoundary != null) {
                 out = saveFragment();
+                if (out != null) {
+                    fragments++;
+                }
             } else {
                 log.print("Cannot recognize text as a mail fragment, sorry:");
                 log.dump(text);
@@ -302,15 +314,11 @@ public class FileParser {
 
             Mail mail = new Mail(file, out,
                     from, subject, date, id, contentType);
-            fragmentComposer.addMail(mail);
             log.print("saving mail= " + mail.toString());
-            if (openBoundary != null &&
-                    (closeBoundary == null ||
-                    !closeBoundary.startsWith(openBoundary))) {
-                fragmentComposer.manageOpenBoundary(mail, openBoundary);
-            }
 
-            fixBadMail();
+            if (!fixBadMail()) {
+                return null;
+            }
             return out;
         }
 
@@ -318,27 +326,26 @@ public class FileParser {
             File out = fileFactory.createInFrag(file);
             Fragment fragment = new Fragment(file, out);
             log.print("saving fragment= " + fragment.toString());
-            if (closeBoundary == null || openBoundary == null ||
-                    !closeBoundary.startsWith(openBoundary)) {
-                fragmentComposer.manageOpenBoundary(fragment, openBoundary);
-                fragmentComposer.manageCloseBoundary(fragment, closeBoundary);
-            }
             return out;
         }
 
-        private void fixBadMail() {
-            int counter = 0;
+        private boolean fixBadMail() {
             // removes non-header prefix
+            int counter = 0;
             for (String line : text) {
                 counter++;
-                if (HEADER.matcher(line).matches()) {
-                    text.subList(0, counter).clear();
+                if (HEADER.matcher(line).matches() || line.startsWith("From ")) {
+                    final List<String> prefix = text.subList(0, counter);
+                    log.print("prefix to remove:");
+                    log.dump(prefix);
+                    prefix.clear();
                     break;
                 }
             }
 
             if (text.isEmpty()) {
-                return;
+                log.print("mail is empty");
+                return false;
             }
 
             // adds a legal first line header
@@ -361,6 +368,7 @@ public class FileParser {
                 text.add(1, RECOVERY_HEADER + "close boundary added");
             }
 
+            return true;
         }
     }
 
