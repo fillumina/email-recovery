@@ -12,7 +12,7 @@ public class Main {
     public static void main(String[] args) {
         if (args.length < 3) {
             System.out.println("params: [dir:path to scan] [dir:result] " +
-                    "[file:log] [mail addresses...]");
+                    "[file:log] [own email addresses...]");
             return;
         }
         int addressesNumber = args.length - 3;
@@ -27,7 +27,7 @@ public class Main {
                     true, // creates files and directory normally
 //                    false, // not write anything but print log (debug)
                     addresses)
-                    .parseTree(new File(args[0]));
+                    .iterateTree(new File(args[0]));
         } catch (IOException ex) {
             throw new RuntimeException(ex);
         }

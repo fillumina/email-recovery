@@ -11,30 +11,32 @@ import java.security.NoSuchAlgorithmException;
  * @author Francesco Illuminati <fillumina@gmail.com>
  */
 public class Hash {
+    private static final MessageDigest MD5_DIGEST;
+
+    static {
+        try {
+            MD5_DIGEST = MessageDigest.getInstance("MD5");
+        } catch (NoSuchAlgorithmException ex) {
+            throw new AssertionError(ex);
+        }
+    }
 
     /** The length of the returned String is always 32 */
     public static String hashToString(final String password) {
-        final byte[] hash = Hash.hashToByteArray(password);
-        return HexUtils.byteArrayToHexString(hash);
+        MD5_DIGEST.update(password.getBytes());
+        final byte[] hash = MD5_DIGEST.digest();
+        return byteArrayToHexString(hash);
     }
 
-    /**
-     * Always add to the password a fixed salt to void a rainbow attack:
-     * <code>hashPassword("fixedSalt" + password);</code>
-     * The length of the array returned is always 16.
-     *
-     * @param password
-     * @return
-     */
-    public static byte[] hashToByteArray(final String password) {
-        byte[] hash;
-        try {
-            final MessageDigest md5 = MessageDigest.getInstance("MD5");
-            md5.update(password.getBytes());
-            hash = md5.digest();
-        } catch (NoSuchAlgorithmException nsae) {
-            throw new RuntimeException(nsae);
+    private static String byteArrayToHexString(final byte[] b) {
+        final StringBuffer sb = new StringBuffer(b.length << 1);
+        for (int i = 0; i < b.length; i++) {
+            int v = b[i] & 0xff;
+            if (v < 16) {
+                sb.append('0');
+            }
+            sb.append(Integer.toHexString(v));
         }
-        return hash;
+        return sb.toString().toUpperCase();
     }
 }

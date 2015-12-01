@@ -6,7 +6,10 @@ import java.util.Locale;
 import java.util.TimeZone;
 
 /**
- * Manipulation of dates in JDK minor than 1.8 is simply horrible.
+ * Extracts the date field out of an email. Emails have a default for that
+ * but for many reasons there are exceptions that should be captured. This
+ * is an attempt at doing that and it seems to work pretty well.
+ * Manipulation of dates in JDK minor than 1.8 is simply horrible BTW.
  *
  * @author Francesco Illuminati <fillumina@gmail.com>
  */

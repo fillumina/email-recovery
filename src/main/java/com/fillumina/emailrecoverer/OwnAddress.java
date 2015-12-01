@@ -1,6 +1,7 @@
 package com.fillumina.emailrecoverer;
 
 /**
+ * Useful to separate sent from received messages.
  *
  * @author Francesco Illuminati <fillumina@gmail.com>
  */

@@ -25,7 +25,7 @@ public class Boundary {
         for (char c : array) {
             if (c == ' ' || c == '<' || c == '>' ||
                     c == '*' || c == '~' ||
-                    c == '=' || c > 127 || c < 32) {
+                    c > 127 || c < 32) {
                 return false;
             }
         }

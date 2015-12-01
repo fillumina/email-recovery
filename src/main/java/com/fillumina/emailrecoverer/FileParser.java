@@ -14,10 +14,11 @@ import java.util.regex.Pattern;
  * @author Francesco Illuminati <fillumina@gmail.com>
  */
 public class FileParser {
-    private static final Pattern HEADER = Pattern.compile("^[A-Z][A-Za-z\\-]{2,}:");
+    private static final Pattern HEADER = Pattern.compile("^[A-Z][A-Za-z0-9_0\\-]{1,}:\\ ");
     private static final String RECOVERY_HEADER = "X-Recovery-Fix-Import: ";
+    private static final boolean SAVE_FRAGMENTS = false; // for debugging
 
-    private static final String[] HEADERS = new String[] {
+    private static final String[] START_MAIL_HEADERS = new String[] {
         "From - ",
         "From ???@??? ",
         "Return-Path: ",
@@ -26,7 +27,11 @@ public class FileParser {
         "X-Spam-",
         "X-Account-Key: ",
         "X-Original-To: ",
-        "Delivered-To: "
+        "X-UIDL: ",
+        "X-Mozilla-Status: ",
+        "X-Mozilla-Status2: ",
+        "X-Mozilla-Keys: ",
+        "X-Spam-Checker-Version: "
     };
 
     private final OwnAddress ownAddress;
@@ -57,6 +62,10 @@ public class FileParser {
         return fragments;
     }
 
+    private enum Status {
+        HEADER, BODY
+    }
+
     private class Inner {
         private final File file;
         private final List<String> text = new ArrayList<>();
@@ -68,13 +77,15 @@ public class FileParser {
         private String openBoundary;
         private Date date;
         private boolean untrustableDate = true;
-        private boolean searchingHeader = true;
+        private Status status = Status.BODY;
+        private int limboBodyLines;
 
         public Inner(File file) {
             this.file = file;
         }
 
         private void clearVariables() {
+            text.clear();
             from = null;
             subject = null;
             id = null;
@@ -82,6 +93,7 @@ public class FileParser {
             closeBoundary = null;
             openBoundary = null;
             date = null;
+            untrustableDate = true;
         }
 
         // passing here an iterable should make it easier to test
@@ -108,11 +120,6 @@ public class FileParser {
                         lastBinaryCounter = 0;
                     }
                     continue;
-                }
-                if (line != row) {
-                    // cleaned burst
-                    log.print("row (with burst)= " + row);
-                    log.print("cleaned line    = " + line);
                 }
 
                 int length = line.length();
@@ -159,18 +166,77 @@ public class FileParser {
         }
 
         private void parseLine(String line) throws IOException {
-            // check for starting mail
-            if (searchingHeader) {
-                for (String header : HEADERS) {
-                    if (line.startsWith(header)) {
-                        log.print("start of email = " + line);
-                        searchingHeader = false;
-                        checkIfMailIsInBuffer();
+            log.printDebugLine(line);
+
+            switch(status) {
+                case BODY:
+                    // search for a new email
+                    if (isStartingHeader(line)) {
+                        log.print("start of email");
+                        checkIfPreviousMail();
+                        status = Status.HEADER;
                         break;
+                    } else {
+                        limboBodyLines = 0;
+                        checkBoundary(line);
                     }
-                }
+                    break;
+
+                case HEADER:
+                    if (isBodyText(line)) {
+                        log.print("limbo body");
+                        limboBodyLines++;
+                        checkBoundary(line);
+                        if (limboBodyLines > 2) {
+                            // to overcome text noise in headers
+                            log.print("starting body");
+                            status = Status.BODY;
+                        }
+                        break;
+                    } else {
+                        limboBodyLines = 0;
+                        readHeader(line);
+                    }
+                    break;
             }
 
+        }
+
+        private void checkIfPreviousMail() throws IOException {
+            if (text.isEmpty() || from == null || date == null) {
+                clearVariables();
+                return;
+            }
+            String lastLine = text.remove(text.size() - 1);
+            checkIfMailIsInBuffer();
+            text.add(lastLine);
+        }
+
+        private void checkIfMailIsInBuffer() throws IOException {
+            if (text.isEmpty() || from == null || date == null) {
+                clearVariables();
+                return;
+            }
+            save();
+            clearVariables();
+        }
+
+        private boolean isBodyText(String line) {
+            return !line.startsWith(" ") &&
+                    !line.startsWith("\t") &&
+                    !HEADER.matcher(line).find();
+        }
+
+        private boolean isStartingHeader(String line) {
+            for (String header : START_MAIL_HEADERS) {
+                if (line.startsWith(header)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private void readHeader(String line) throws IOException {
             // use every possible mean to capture a date
             if (date == null && line.startsWith("From - ")) {
                 final String dateStr = line.substring(7);
@@ -178,7 +244,7 @@ public class FileParser {
                 if (date != null) {
                     untrustableDate = true;
                     log.print("read date from 'From - '= '" + dateStr +
-                        "' parsed as= '" + date.toString() + "'");
+                            "' parsed as= '" + date.toString() + "'");
                 }
 
             } else if (date == null && line.startsWith("Received: from ")) {
@@ -188,16 +254,14 @@ public class FileParser {
                 if (date != null) {
                     untrustableDate = true;
                     log.print("read date from 'Received: from'= '" + dateStr +
-                        "' parsed as= '" + date.toString() + "'");
+                            "' parsed as= '" + date.toString() + "'");
                 }
 
             } else if (from == null && line.startsWith("From: ")) {
-                searchingHeader = true;
                 from = line.substring(6);
                 log.print("read from= " + from);
 
             } else if (untrustableDate && line.startsWith("Date: ")) {
-                searchingHeader = true;
                 String dateStr = line.substring(6);
                 date = DateExtractor.parse(dateStr);
                 log.print("read date= '" + dateStr +
@@ -205,7 +269,6 @@ public class FileParser {
                 untrustableDate = false;
 
             } else if (subject == null && line.startsWith("Subject: ")) {
-                searchingHeader = true;
                 subject = line.substring(9);
                 log.print("read subject= " + subject);
 
@@ -213,16 +276,18 @@ public class FileParser {
                 if (id != null) {
                     checkIfMailIsInBuffer();
                 }
-                searchingHeader = true;
                 id = line.substring(11);
                 log.print("read id= " + id);
 
             } else if (line.startsWith("ContentType: ")) {
-                searchingHeader = true;
                 contentType = line.substring(13);
                 log.print("read content type= " + contentType);
 
-            } else if (Boundary.isValid(line)) {
+            }
+        }
+
+        private void checkBoundary(String line) {
+            if (Boundary.isValid(line)) {
                 if (Boundary.isClose(line)) {
                     if (openBoundary != null &&
                             line.startsWith(openBoundary)) {
@@ -230,7 +295,7 @@ public class FileParser {
                         openBoundary = null;
 
                     } else if (closeBoundary == null) {
-                        log.print("close boundary (fragment) = " + line);
+                        log.print("close boundary = " + line);
                         closeBoundary = line;
 
                     } else {
@@ -242,17 +307,6 @@ public class FileParser {
                     openBoundary = line;
                 }
             }
-
-        }
-
-        private void checkIfMailIsInBuffer() throws IOException {
-            String lastLine = text.remove(text.size() - 1);
-            if (from != null || closeBoundary != null) {
-                save();
-            }
-            text.clear();
-            text.add(lastLine);
-            clearVariables();
         }
 
         private void save() throws IOException {
@@ -266,26 +320,22 @@ public class FileParser {
 
             File out = null;
             if (from != null && date != null) {
-                out = saveMail();
-                if (out != null) {
+                out = createMailFilename();
+                if (out != null && !text.isEmpty()) {
                     mails++;
+                    saveFile(out, text);
                 }
-            } else if (openBoundary != null || closeBoundary != null) {
-                out = saveFragment();
+
+            } else if (SAVE_FRAGMENTS) {
+                out = createFragmentFile();
                 if (out != null) {
                     fragments++;
+                    saveFile(out, text);
                 }
-            } else {
-                log.print("Cannot recognize text as a mail fragment, sorry:");
-                log.dump(text);
-            }
-
-            if (out != null && !text.isEmpty()) {
-                saveFile(out, text.subList(0, text.size() - 1));
             }
         }
 
-        private File saveMail() throws IOException {
+        private File createMailFilename() throws IOException {
             File out;
             final String name = Mail.createFilename(date, from, id, subject) +
                          "_" + file.getName() + ".msg";
@@ -322,7 +372,7 @@ public class FileParser {
             return out;
         }
 
-        private File saveFragment() throws IOException {
+        private File createFragmentFile() throws IOException {
             File out = fileFactory.createInFrag(file);
             Fragment fragment = new Fragment(file, out);
             log.print("saving fragment= " + fragment.toString());
@@ -330,18 +380,6 @@ public class FileParser {
         }
 
         private boolean fixBadMail() {
-            // removes non-header prefix
-            int counter = 0;
-            for (String line : text) {
-                counter++;
-                if (HEADER.matcher(line).matches() || line.startsWith("From ")) {
-                    final List<String> prefix = text.subList(0, counter);
-                    log.print("prefix to remove:");
-                    log.dump(prefix);
-                    prefix.clear();
-                    break;
-                }
-            }
 
             if (text.isEmpty()) {
                 log.print("mail is empty");
@@ -349,15 +387,7 @@ public class FileParser {
             }
 
             // adds a legal first line header
-            boolean startingWithLegalHeader = false;
-            String first = text.get(0);
-            for (String header : HEADERS) {
-                if (first.startsWith(header)) {
-                    startingWithLegalHeader = true;
-                    break;
-                }
-            }
-            if (!startingWithLegalHeader) {
+            if (!isStartingHeader(text.get(0))) {
                 text.add(0, "From -");
                 text.add(1, RECOVERY_HEADER + "'From -' header added");
             }

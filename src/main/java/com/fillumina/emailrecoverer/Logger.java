@@ -4,6 +4,7 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -27,6 +28,11 @@ public class Logger implements Closeable {
         }
     }
 
+    public void printTimed(String message, File file) {
+        print(new Date().toString() + ": " + message + " " +
+                file.getAbsolutePath());
+    }
+
     public void print(String s) {
         if (printout) {
             System.out.println(s);
@@ -38,6 +44,12 @@ public class Logger implements Closeable {
             } catch (IOException ex) {
                 throw new RuntimeException(ex);
             }
+        }
+    }
+
+    public void printDebugLine(String line) {
+        if (!write) {
+            System.out.println("  | " + line);
         }
     }
 

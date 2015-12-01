@@ -33,6 +33,7 @@ public class BoundaryTest {
         assertTrue(Boundary.isValid("----boundary_26910_5a2595cd-87d4-40a4-a760-59655890d566--"));
         assertTrue(Boundary.isValid("--boundaryTagForMixed--"));
         assertTrue(Boundary.isValid("----------MB_8CFEC52E23A10A7_C9C_B25E2_webmail-d185.sysops.aol.com"));
+        assertTrue(Boundary.isValid("------=_NextPart_000_0007_01D11ACD.C58DAFB0"));
     }
 
     @Test
@@ -46,11 +47,12 @@ public class BoundaryTest {
     }
 
     @Test
-    public void shouldNotRecognizeOpenBoundary() {
+    public void shouldRecognizeOpenBoundary() {
         assertFalse(Boundary.isClose("--b1_b77a10ae4f560f0f5285e85c4064b8ce"));
         assertFalse(Boundary.isClose("--CCC6079EA0A.1393690145/mail.hurricane.it"));
         assertFalse(Boundary.isClose("--99957d0a4cad95bf6cff0929d704e86bbe09edaa"));
         assertFalse(Boundary.isClose("----------MB_8CFEC52E23A10A7_C9C_B25E2_webmail-d185.sysops.aol.com"));
+        assertFalse(Boundary.isClose("------=_NextPart_000_0007_01D11ACD.C58DAFB0"));
     }
 
     @Test

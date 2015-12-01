@@ -3,7 +3,6 @@ package com.fillumina.emailrecoverer;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.Date;
 
 /**
  *
@@ -23,8 +22,6 @@ public class TreeNavigator {
             String[] addresses)
             throws IOException {
         log = new Logger(logFilename, true, write);
-        log.print("\n\n\n#### STARTING " + (new Date().toString()) +
-                "###\n\n");
 
         for (String address : addresses) {
             log.print("register local address= " + address);
@@ -37,19 +34,17 @@ public class TreeNavigator {
     }
 
     public void iterateTree(File dir) throws FileNotFoundException, IOException {
-        log.print(new Date().toString() +
-                ": start parsing tree: " + dir.getAbsolutePath());
-        parseTree(dir);
-        log.print(new Date().toString() + ": end parsing tree: " +
-                dir.getAbsolutePath());
+        log.printTimed("start parsing tree", dir);
+        parseDir(dir);
+        printStats();
+        log.printTimed("end parsing tree", dir);
     }
 
-    public void parseTree(File dir) throws FileNotFoundException, IOException {
-        log.print(new Date().toString() +
-                ": start parsing files in " + dir.getAbsolutePath());
+    private void parseDir(File dir) throws FileNotFoundException, IOException {
+        log.printTimed("start parsing files in", dir);
         for (File file : dir.listFiles()) {
             if (file.isDirectory()) {
-                parseTree(file);
+                parseDir(file);
             } else {
                 fileNumber++;
                 fileParser.parse(file);
@@ -58,8 +53,7 @@ public class TreeNavigator {
                 }
             }
         }
-        log.print(new Date().toString() + ": end parsing files in " +
-                dir.getAbsolutePath());
+        log.printTimed("end parsing files in", dir);
     }
 
     private void printStats() {
@@ -67,7 +61,7 @@ public class TreeNavigator {
         log.print("------------------------------");
         log.print("file parsed: " + fileNumber);
         log.print("email recovered: " + fileParser.getMails());
-        log.print("email with fragments: " + fileParser.getFragments());
+        log.print("unrecoverable fragments: " + fileParser.getFragments());
         log.print("==============================================");
     }
 }
