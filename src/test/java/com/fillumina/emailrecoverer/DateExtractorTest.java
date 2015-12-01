@@ -29,6 +29,21 @@ public class DateExtractorTest {
     }
 
     @Test
+    public void shouldParseDefaultFormat2() {
+        Date date = DateExtractor.parse("Mon, 1 Dec 2014 03:54:22 +0000");
+        Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("GMT"), Locale.US);
+        cal.setTimeInMillis(0);
+        cal.setTime(date);
+        assertEquals(1, cal.get(Calendar.DAY_OF_MONTH));
+        assertEquals(11, cal.get(Calendar.MONTH));
+        assertEquals(2014, cal.get(Calendar.YEAR));
+        assertEquals(3, cal.get(Calendar.HOUR_OF_DAY)); // because of timezone
+        assertEquals(54, cal.get(Calendar.MINUTE));
+        assertEquals(22, cal.get(Calendar.SECOND));
+        assertEquals(0, cal.get(Calendar.ZONE_OFFSET));
+    }
+
+    @Test
     public void shouldParseWrongFormat() {
         Date date = DateExtractor.parse("6 May 2004 23:47:16");
         Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("GMT"), Locale.US);

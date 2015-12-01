@@ -16,7 +16,7 @@ import java.util.TimeZone;
 public class DateExtractor {
     private static final String[] MONTHS = new String[] {
         "jan", "feb", "mar", "apr", "may", "jun",
-        "jul", "aug", "sep", "oct", "nov", "dic"
+        "jul", "aug", "sep", "oct", "nov", "dec"
     };
 
     /**

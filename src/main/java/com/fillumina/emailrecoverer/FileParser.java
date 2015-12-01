@@ -2,7 +2,6 @@ package com.fillumina.emailrecoverer;
 
 import java.io.File;
 import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
@@ -14,7 +13,8 @@ import java.util.regex.Pattern;
  * @author Francesco Illuminati <fillumina@gmail.com>
  */
 public class FileParser {
-    private static final Pattern HEADER = Pattern.compile("^[A-Z][A-Za-z0-9_0\\-]{1,}:\\ ");
+    private static final Pattern HEADER =
+            Pattern.compile("^[A-Z][A-Za-z0-9_0\\-]{1,}:\\ ");
     private static final String RECOVERY_HEADER = "X-Recovery-Fix-Import: ";
     private static final boolean SAVE_FRAGMENTS = false; // for debugging
 
@@ -51,7 +51,9 @@ public class FileParser {
     }
 
     public void parse(File file) throws IOException {
-        new Inner(file).parse(new FileLoaderIterator(new FileReader(file), 0));
+        final FileLoaderIterator iterator =
+                new FileLoaderIterator(new FileReader(file), 0);
+        new Inner(file).parse(iterator);
     }
 
     public int getMails() {
@@ -94,6 +96,8 @@ public class FileParser {
             openBoundary = null;
             date = null;
             untrustableDate = true;
+            status = Status.BODY;
+            limboBodyLines = 0;
         }
 
         // passing here an iterable should make it easier to test
@@ -152,15 +156,9 @@ public class FileParser {
                     continue;
                 }
 
-                text.add(line);
-                //printText(line);
-                if (line.isEmpty()) {
-                    //print("empty line");
-                    continue;
-                }
-
-                // the line is finally accepted as valid text
                 parseLine(line);
+
+                text.add(line);
             }
             checkIfMailIsInBuffer();
         }
@@ -173,7 +171,7 @@ public class FileParser {
                     // search for a new email
                     if (isStartingHeader(line)) {
                         log.print("start of email");
-                        checkIfPreviousMail();
+                        checkIfMailIsInBuffer();
                         status = Status.HEADER;
                         break;
                     } else {
@@ -200,16 +198,6 @@ public class FileParser {
                     break;
             }
 
-        }
-
-        private void checkIfPreviousMail() throws IOException {
-            if (text.isEmpty() || from == null || date == null) {
-                clearVariables();
-                return;
-            }
-            String lastLine = text.remove(text.size() - 1);
-            checkIfMailIsInBuffer();
-            text.add(lastLine);
         }
 
         private void checkIfMailIsInBuffer() throws IOException {
@@ -318,27 +306,29 @@ public class FileParser {
 
             log.print("saving email");
 
-            File out = null;
+            File out;
             if (from != null && date != null) {
                 out = createMailFilename();
                 if (out != null && !text.isEmpty()) {
                     mails++;
-                    saveFile(out, text);
+                    fileFactory.saveFile(out, text);
                 }
 
             } else if (SAVE_FRAGMENTS) {
                 out = createFragmentFile();
                 if (out != null) {
                     fragments++;
-                    saveFile(out, text);
+                    fileFactory.saveFile(out, text);
                 }
             }
         }
 
         private File createMailFilename() throws IOException {
             File out;
-            final String name = Mail.createFilename(date, from, id, subject) +
-                         "_" + file.getName() + ".msg";
+            final String name =
+                    DateExtractor.toCompactString(date) + "_" +
+                    Hash.hashToString(date + from + id + subject) + "_" +
+                    file.getName() + ".msg";
             if (ownAddress.isOwnAddress(from)) {
                 log.print("sent");
                 out = fileFactory.createInSent(date, name);
@@ -362,32 +352,31 @@ public class FileParser {
                 limit--;
             }
 
-            Mail mail = new Mail(file, out,
-                    from, subject, date, id, contentType);
-            log.print("saving mail= " + mail.toString());
+            log.print("saving mail" +
+                    " from= " + from +
+                    ", date= " + date +
+                    ", subject= " + subject);
 
-            if (!fixBadMail()) {
+            if (text.isEmpty()) {
+                log.print("mail is empty");
                 return null;
             }
+
+            fixMail();
+
             return out;
         }
 
         private File createFragmentFile() throws IOException {
             File out = fileFactory.createInFrag(file);
-            Fragment fragment = new Fragment(file, out);
-            log.print("saving fragment= " + fragment.toString());
+            log.print("saving fragment= " + out.getAbsolutePath());
             return out;
         }
 
-        private boolean fixBadMail() {
-
-            if (text.isEmpty()) {
-                log.print("mail is empty");
-                return false;
-            }
+        private void fixMail() {
 
             // adds a legal first line header
-            if (!isStartingHeader(text.get(0))) {
+            if (!text.get(0).startsWith("From - ")) {
                 text.add(0, "From -");
                 text.add(1, RECOVERY_HEADER + "'From -' header added");
             }
@@ -397,8 +386,6 @@ public class FileParser {
                 text.add(openBoundary + "--");
                 text.add(1, RECOVERY_HEADER + "close boundary added");
             }
-
-            return true;
         }
     }
 
@@ -459,18 +446,4 @@ public class FileParser {
         return row;
     }
 
-    protected void saveFile(File out, List<String> text) throws IOException {
-        log.print("saving file " + out.toString());
-        if (write) {
-            try (FileWriter writer = new FileWriter(out)) {
-                for (String line : text) {
-                    writer.write(line);
-                    writer.write('\n');
-                }
-                // double space to help rebuilding mbox
-                writer.write("\n\n");
-                writer.flush();
-            }
-        }
-    }
 }

@@ -47,6 +47,7 @@ public class Logger implements Closeable {
         }
     }
 
+    /** Print the line in standard output only if in debugging mode. */
     public void printDebugLine(String line) {
         if (!write) {
             System.out.println("  | " + line);

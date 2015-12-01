@@ -1,8 +1,10 @@
 package com.fillumina.emailrecoverer;
 
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Date;
+import java.util.List;
 
 /**
  *
@@ -10,7 +12,7 @@ import java.util.Date;
  */
 public class FileFactory {
     private final Logger log;
-    private final File sent, recv, frag, join;
+    private final File sent, recv, frag;
     private final boolean write;
 
     public FileFactory(File destDir, Logger log, boolean write) throws IOException {
@@ -19,7 +21,6 @@ public class FileFactory {
         this.sent = createSubdir(new File(destDir, "sent"));
         this.recv = createSubdir(new File(destDir, "recv"));
         this.frag = createSubdir(new File(destDir, "frag"));
-        this.join = createSubdir(new File(destDir, "join"));
     }
 
     public File createInSent(Date date, String name) throws IOException {
@@ -38,11 +39,6 @@ public class FileFactory {
         } else {
             return new File("unwritten_temp_" + System.nanoTime());
         }
-    }
-
-    public File createInJoin(Mail mail) throws IOException {
-        String year = DateExtractor.getYearAsString(mail.getDate());
-        return create(join, year, mail.getDestFilename().getName());
     }
 
     private File create(File dest, String year, String name) throws IOException {
@@ -65,5 +61,20 @@ public class FileFactory {
                             file.getAbsolutePath());
         }
         return file;
+    }
+
+    public void saveFile(File out, List<String> text) throws IOException {
+        log.print("saving file " + out.toString());
+        if (write) {
+            try (FileWriter writer = new FileWriter(out)) {
+                for (String line : text) {
+                    writer.write(line);
+                    writer.write('\n');
+                }
+                // double space to help rebuilding mbox
+                writer.write("\n\n");
+                writer.flush();
+            }
+        }
     }
 }
