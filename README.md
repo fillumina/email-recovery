@@ -12,7 +12,8 @@ tree containing textual files supposedly containing email fragments.
 
 Usage scenario
 --------------
-A Windows system disk broke and the `thunderbird` mbox files should be
+A Windows hard disk went defective, the NTFS MFT got damaged and the
+[thunderbird](https://www.mozilla.org/en-US/thunderbird/) mbox files should be
 recovered. mbox files are really hard to recover because they don't have
 a strong internal structure, they are very fragmented on disk and often
 huge in size.
@@ -27,11 +28,11 @@ recover files from a defective disk or partition. PhotoRec tries to identify
 the extension of the files and validates them so that a file starting with 'f'
 should be considered valid and one starting with 'b' is broken
 (it is better to set the 'keep broken files' PhotoRec option to maximize the
-chances).
+recovery chances).
 PhotoRec creates a directory structure with
 directories named such as `recup_dir.XXX` that contain unordered files.
-It is worth noting that because the name of the file corresponds to the
-the logical sector it belongs from, names are unique.
+It is worth noting that because the name of each file corresponds to the
+the logical sector it belongs to, names are unique.
 
 Group files by extension using Divide
 -------------------------------------
@@ -41,50 +42,55 @@ tree where each file type has a proper named directory use the java class
 
 Group together those extensions that could potentially contain emails
 ---------------------------------------------------------------------
-These extensions have highest probability to contain an email fragment:
-    . `emlx`  each file might probably contain more than one email
-    . `h`     fragments
-    . `html`  html and code fragments
-    . `java`
-    . `mail`  fragments
-    . `mbox`  files which are validated emails
-    . `txt`   contain a lot of fragments
+These extensions have the highest probability to contain an email fragment:
 
-Recover as many emails as possible with `email-recoverer`
----------------------------------------------------------
-Using the `Main` class of this project is is possible to recover a lot
-of emails from the fragments present in the textual files on a directories
-tree. The program is able to filter out binary data and tries to
-rebuild broken emails by eliminating the noise.
+* `emlx`  each file might probably contain more than one email
+* `h`     fragments
+* `html`  html and code fragments
+* `java`
+* `mail`  fragments
+* `mbox`  files which are validated emails
+* `txt`   contain a lot of fragments
+
+Put these directories on a separate tree.
+
+Recover as many emails as possible
+----------------------------------
+Use the `Main` class on this project to recover the emails from the fragments
+present in the textual files on the created directory tree.
+The program is able to filter out binary data and tries to
+rebuild broken emails by removing the noise and adding the missing headers.
 
 
 Remove duplicates
 -----------------
 The previous step produces a lot of duplicate emails coming
-from different files. This is probably because the way PhotoRec works or maybe
-because of various copies present on the broken disk, I don't know. It is
+from different files. This is probably because of the way PhotoRec works or maybe
+because of various copies present on the broken filesystem, I don't know. It is
 important to remove them. I used `fdupes` on linux with the following
 line (the current directory should be `recv` or `sent`):
 
-    find . -type d -print -exec fdupes -Nr {} \;
+    find * -type d -print -exec fdupes -Ndr {} \;
 
 
 Create the mbox
 ---------------
 mbox is an email archive where all the emails are simply stored one after the
-other. An email must start with a line beginning with 'From - ' characters and
+other. An email must start with a line beginning with 'From - ' and
 end with an empty line. Email boundaries deriving from the multi-part protocol
 might confuse the reader so an email containing multi-parts should always be
 closed. The mbox can be created easily from the email directory produced
-with the following command (the name chosen for the email makes them sorted by
+with the following command (the name chosen for the emails makes them sorted by
 date and name at the same time):
 
-    ls -1 * | xargs -n 32 > ../2015.mbox
+    find * -type d -print -execdir sh -c ' find {} -type f | sort | xargs -n 32 cat > {}.mbox '  \;
 
 Import the mbox into thunderbird
 --------------------------------
-The last step is to make thunderbird read the crated mbox and be able to read the
-emails again. I used the thunderbird plugin
+The last step is to make thunderbird import the crated mbox files and be able to
+read the emails again. I used the thunderbird plugin
 [ImportExportTools 3.2.4.1 by Paolo Kaosmos](https://freeshell.de/~kaosmos/index-en.html).
-Unfortunately not every mail has been read and parsed correctly but most of them
-have.
+Unfortunately not every mail has been read and parsed correctly (there is still
+some corruption) but most of them have. If an email is not correctly shown
+in the thunderbird panel try to look at the original unparsed message with the
+'show source' option.
