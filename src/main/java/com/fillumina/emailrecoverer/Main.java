@@ -10,7 +10,7 @@ import java.io.IOException;
 public class Main {
 
     public static void main(String[] args) {
-        if (args.length < 3) {
+        if (args.length < 4) {
             System.out.println("params: [dir:path to scan] [dir:result] " +
                     "[file:log] [own email addresses...]");
             return;
