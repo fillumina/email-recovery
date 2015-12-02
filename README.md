@@ -40,7 +40,7 @@ To move each files from the directory structure created by PhotoRec to a
 tree where each file type has a proper named directory use the java class
 `Divide` on this project.
 
-    java -cp email-recovery-1.0.jar com.fillumina.emailrecoverer.Divide
+    java -cp email-recovery-1.0.jar com.fillumina.emailrecovery.Divide
 
 parameters: params: [dir:source tree] [dir:destination tree]
 
@@ -49,7 +49,7 @@ parameters: params: [dir:source tree] [dir:destination tree]
 
 example:
 
-    java -cp email-recovery-1.0.jar com.fillumina.emailrecoverer.Divide \
+    java -cp email-recovery-1.0.jar com.fillumina.emailrecovery.Divide \
         /media/LaCie/PhotoRec /media/LaCie/RAW_RECOVERED
 
 
@@ -74,7 +74,7 @@ present in the textual files on the created directory tree.
 The program is able to filter out binary data and tries to
 rebuild broken emails by removing the noise and adding the missing headers.
 
-    java -cp email-recovery-1.0.jar com.fillumina.emailrecoverer.Main
+    java -cp email-recovery-1.0.jar com.fillumina.emailrecovery.Main
 
 parameters:
 
@@ -86,7 +86,7 @@ parameters:
 
 example:
 
-    java -cp email-recovery-1.0.jar com.fillumina.emailrecoverer.Main \
+    java -cp email-recovery-1.0.jar com.fillumina.emailrecovery.Main \
         /media/LaCie/RAW_RECOVERED /media/LaCie/RECOVERED ~/recovery.log \
         fra@imagine.com nobody@reason.com
 
