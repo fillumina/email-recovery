@@ -26,7 +26,7 @@ public class DateExtractor {
      * those messages should be rejected by mail servers. Anyway here is
      * a way to try to read something out of those gibberish.
      *
-     * ... what I am nuts? The spammers are the ones that pays for email
+     * ... what I am nuts? The spammers are the ones that pay for email
      * readers!
      */
     public static Date parse(String date) {
