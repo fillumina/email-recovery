@@ -89,7 +89,9 @@ Import the mbox into thunderbird
 --------------------------------
 The last step is to make thunderbird import the crated mbox files and be able to
 read the emails again. I used the thunderbird plugin
-[ImportExportTools 3.2.4.1 by Paolo Kaosmos](https://freeshell.de/~kaosmos/index-en.html).
+[ImportExportTools 3.2.4.1 by Paolo Kaosmos](https://freeshell.de/~kaosmos/index-en.html)
+or directly in the
+[Thunderbird Add-ons](https://addons.mozilla.org/it/thunderbird/addon/importexporttools/).
 Unfortunately not every mail has been read and parsed correctly (there is still
 some corruption) but most of them have. If an email is not correctly shown
 in the thunderbird panel try to look at the original unparsed message with the
