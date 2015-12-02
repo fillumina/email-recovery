@@ -1,5 +1,6 @@
-package com.fillumina.emailrecoverer;
+package com.fillumina.emailrecovery;
 
+import com.fillumina.emailrecovery.DateExtractor;
 import java.util.Calendar;
 import org.junit.Test;
 import java.util.Date;

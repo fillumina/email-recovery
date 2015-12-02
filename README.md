@@ -40,6 +40,19 @@ To move each files from the directory structure created by PhotoRec to a
 tree where each file type has a proper named directory use the java class
 `Divide` on this project.
 
+    java -cp email-recovery-1.0.jar com.fillumina.emailrecoverer.Divide
+
+parameters: params: [dir:source tree] [dir:destination tree]
+
+* **source tree (dir):** the directory tree containing the text
+* **destination tree (dir):**  where to produce the results
+
+example:
+
+    java -cp email-recovery-1.0.jar com.fillumina.emailrecoverer.Divide \
+        /media/LaCie/PhotoRec /media/LaCie/RAW_RECOVERED
+
+
 Group together those extensions that could potentially contain emails
 ---------------------------------------------------------------------
 These extensions have the highest probability to contain an email fragment:
@@ -61,6 +74,21 @@ present in the textual files on the created directory tree.
 The program is able to filter out binary data and tries to
 rebuild broken emails by removing the noise and adding the missing headers.
 
+    java -cp email-recovery-1.0.jar com.fillumina.emailrecoverer.Main
+
+parameters:
+
+* **path to scan (dir):** the directory tree containing the texts
+* **result (dir):**  where to produce the results
+* **log (file):**    a quite detailed log of what happened
+* **own email addresses:**  space-separated list of own emails to distinguish
+    sent from received emails.
+
+example:
+
+    java -cp email-recovery-1.0.jar com.fillumina.emailrecoverer.Main \
+        /media/LaCie/RAW_RECOVERED /media/LaCie/RECOVERED ~/recovery.log \
+        fra@imagine.com nobody@reason.com
 
 Remove duplicates
 -----------------

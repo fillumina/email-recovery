@@ -1,4 +1,4 @@
-package com.fillumina.emailrecoverer;
+package com.fillumina.emailrecovery;
 
 import java.util.Iterator;
 

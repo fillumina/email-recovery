@@ -1,4 +1,4 @@
-package com.fillumina.emailrecoverer;
+package com.fillumina.emailrecovery;
 
 /**
  * Useful to separate sent from received messages.

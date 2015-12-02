@@ -1,5 +1,6 @@
-package com.fillumina.emailrecoverer;
+package com.fillumina.emailrecovery;
 
+import com.fillumina.emailrecovery.Boundary;
 import org.junit.Test;
 import static org.junit.Assert.*;
 

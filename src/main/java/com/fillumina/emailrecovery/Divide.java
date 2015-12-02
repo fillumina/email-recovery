@@ -1,4 +1,4 @@
-package com.fillumina.emailrecoverer;
+package com.fillumina.emailrecovery;
 
 import java.io.File;
 
@@ -11,8 +11,9 @@ public class Divide {
 
     public static void main(String[] args) {
         if (args.length < 2) {
-            throw new IllegalArgumentException(
+            System.out.println(
                     "params: [dir:source tree] [dir:destination tree]");
+            return;
         }
         final File base = getFile(args[0]);
         final File starting = getFile(args[1]);
